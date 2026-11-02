@@ -183,7 +183,7 @@ class MainActivity : Activity() {
             pivotX=0f
         }
         root.addView(content,FrameLayout.LayoutParams(-1,-1))
-        val scroll=ScrollView(this).apply { fillViewport=true }
+        val scroll=ScrollView(this).apply { isFillViewport=true }
         content.addView(scroll)
         val body=LinearLayout(this).apply {
             orientation=LinearLayout.VERTICAL
