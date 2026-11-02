@@ -8,6 +8,7 @@ import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.Dialog
 import android.content.Intent
+import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
@@ -34,6 +35,7 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -163,6 +165,12 @@ class MainActivity : Activity() {
         drawer.addView(label("AMPY / TUBE",24f,aqua,true))
         drawer.addView(label("RESIDE  •  ORGANIC MOTION",11f,purple))
         drawer.addView(gap(28))
+        drawer.addView(button("◉ IL MIO YOUTUBE") { reside(false); openYouTubePage("you") })
+        drawer.addView(gap(12))
+        drawer.addView(button("▤ ISCRIZIONI") { reside(false); openYouTubePage("subscriptions") })
+        drawer.addView(gap(12))
+        drawer.addView(button("↺ CRONOLOGIA") { reside(false); openYouTubePage("history") })
+        drawer.addView(gap(18))
         drawer.addView(button("♫ SOLO AUDIO") { setAudio(true); reside(false) })
         drawer.addView(gap(12))
         drawer.addView(button("▶ VIDEO") { setAudio(false); reside(false) })
@@ -207,6 +215,16 @@ class MainActivity : Activity() {
         body.addView(urlField,LinearLayout.LayoutParams(-1,dp(51)))
         body.addView(gap(10))
         body.addView(line(button("▶ CARICA",true) { load() },button("▣ FILE") { openFile() }))
+        body.addView(gap(14))
+        body.addView(label("IL TUO ACCOUNT YOUTUBE",11f,purple,true))
+        body.addView(gap(7))
+        body.addView(line(button("◉ IL MIO YOUTUBE",true) { openYouTubePage("you") },button("▤ ISCRIZIONI") { openYouTubePage("subscriptions") }))
+        body.addView(gap(7))
+        body.addView(line(button("↺ CRONOLOGIA") { openYouTubePage("history") },button("▦ PLAYLIST") { openYouTubePage("playlists") }))
+        body.addView(gap(7))
+        body.addView(button("▶ RIPRODUCI LINK COPIATO") { pasteAndPlay() })
+        body.addView(gap(5))
+        body.addView(label("Accedi una sola volta nel browser sicuro. Torna qui per ascoltare in background.",11f,grey))
         body.addView(gap(16))
 
         playerShell=FrameLayout(this).apply {
@@ -326,6 +344,44 @@ class MainActivity : Activity() {
                 status.text="Servizio media non disponibile: "+e.message
             }
         },java.util.concurrent.Executor { r -> runOnUiThread(r) })
+    }
+
+    /**
+     * Account pages open in the user's real browser using Custom Tabs.
+     * Google sign-in in WebView is blocked and would expose credentials.
+     * Browser cookies remain isolated from AmpyTube's native player.
+     */
+    private fun openYouTubePage(section:String) {
+        val address=when(section) {
+            "subscriptions" -> "https://www.youtube.com/feed/subscriptions"
+            "history" -> "https://www.youtube.com/feed/history"
+            "playlists" -> "https://www.youtube.com/feed/playlists"
+            else -> "https://www.youtube.com/feed/you"
+        }
+        val link=Uri.parse(address)
+        try {
+            CustomTabsIntent.Builder()
+                .setShowTitle(true)
+                .setColorScheme(CustomTabsIntent.COLOR_SCHEME_DARK)
+                .build()
+                .launchUrl(this,link)
+        } catch(_:Exception) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW,link).addCategory(Intent.CATEGORY_BROWSABLE))
+            } catch(_:Exception) { toast("Nessun browser disponibile") }
+        }
+    }
+
+    /** User-initiated clipboard access; never inspect the clipboard in background. */
+    private fun pasteAndPlay() {
+        val clip=(getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).primaryClip
+        val link=clip?.getItemAt(0)?.coerceToText(this)?.toString()?.trim().orEmpty()
+        if(YouTubeResolver.videoId(link)==null) {
+            toast("Copia il link di un video YouTube e riprova")
+            return
+        }
+        urlField.setText(link)
+        load()
     }
 
     private fun load() {
